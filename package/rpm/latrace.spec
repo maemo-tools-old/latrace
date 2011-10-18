@@ -1,5 +1,5 @@
 Name:           latrace
-Version:        0.5.9
+Version:        0.5.11
 Release:        1%{?dist}
 Summary:        LD_AUDIT feature frontend for glibc 2.4+
 Group:          Development/Debuggers
@@ -8,7 +8,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
 URL:            http://people.redhat.com/jolsa/latrace
 Source:         http://people.redhat.com/jolsa/latrace/dl/%{name}-%{version}.tar.bz2
 ExclusiveArch:  %{ix86} x86_64 arm
-BuildRequires:  autoconf bison asciidoc xmlto binutils-devel
+BuildRequires:  autoconf bison asciidoc xmlto binutils-devel flex
 
 %description
 allows you to trace library calls and get their statistics in a
