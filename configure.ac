@@ -18,7 +18,7 @@
 
 
 AC_PREREQ(2.61)
-AC_INIT(latrace, 0.5.11, olsajiri@gmail.com)
+AC_INIT(latrace, 0.5.12, olsajiri@gmail.com)
 AC_CONFIG_SRCDIR([src/latrace.c])
 
 AC_PROG_CC
@@ -72,9 +72,10 @@ AC_TYPE_INT32_T
 AC_TYPE_INT8_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT8_T
+AC_SYS_LARGEFILE
 
 date=`date "+%B %G"`
-unamem=`uname -m | sed 's/i.86/i686/'`
+unamem=`uname -m | sed -e 's/i.86/i686/' -e 's/^armv.*/arm/'`
 
 AC_SUBST(CONFIG_DATE, "$date")
 AC_SUBST(CONFIG_SYSDEP_DIR, "$unamem")
@@ -93,6 +94,15 @@ else
 	AC_MSG_WARN([Arguments display support disabled])
 fi
 
+# for following architectures we have automated tests support
+if test "$unamem" = "x86_64" -o\
+	"$unamem" = "i686" -o\
+	"$unamem" = "arm" ; then
+	AC_SUBST(CONFIG_ARCH_HAVE_TEST, "y")
+else
+	AC_MSG_WARN([No automated test support])
+fi
+
 AC_SEARCH_LIBS([cplus_demangle], [iberty_pic iberty],
 	[AC_DEFINE(CONFIG_LIBERTY, 1, "Liberty found.")],
 	[AC_MSG_WARN([libiberty not found, no demangle support (install binutils-dev)])])
@@ -100,5 +110,6 @@ AC_SEARCH_LIBS([cplus_demangle], [iberty_pic iberty],
 AC_CONFIG_HEADER([src/autoconf.h])
 AC_CONFIG_FILES([src/autoconf.make])
 AC_CONFIG_FILES([doc/asciidoc.conf])
+AC_CONFIG_FILES([etc/latrace.d/latrace.conf])
 
 AC_OUTPUT

@@ -70,6 +70,16 @@ static int check_flow_below(const char *symname, int in)
 	return ret;
 }
 
+static void free_argbuf(int argret, char *argbuf, char *argdbuf)
+{
+	if (argret)
+		return;
+
+	free(argbuf);
+	if (lt_sh(&cfg, args_detailed) && (*argdbuf))
+		free(argdbuf);
+}
+
 static int sym_entry(const char *symname, void *ptr,
 		     char *lib_from, char *lib_to, La_regs *regs)
 {
@@ -104,6 +114,7 @@ static int sym_entry(const char *symname, void *ptr,
 		len = lt_fifo_msym_get(&cfg, buf, FIFO_MSG_TYPE_ENTRY, &tv,
 				(char*) symname, lib_to, argbuf, argdbuf);
 
+		free_argbuf(argret, argbuf, argdbuf);
 		return lt_fifo_send(&cfg, pipe_fd, buf, len);
 	}
 
@@ -114,12 +125,7 @@ static int sym_entry(const char *symname, void *ptr,
 			symname, lib_to,
 			argbuf, argdbuf);
 
-	if (!argret) {
-		free(argbuf);
-		if (lt_sh(&cfg, args_detailed) && (*argdbuf))
-			free(argdbuf);
-	}
-
+	free_argbuf(argret, argbuf, argdbuf);
 	return 0;
 }
 
@@ -156,6 +162,7 @@ static int sym_exit(const char *symname, void *ptr,
 		len = lt_fifo_msym_get(&cfg, buf, FIFO_MSG_TYPE_EXIT, &tv,
 				(char*) symname, lib_to, argbuf, argdbuf);
 
+		free_argbuf(argret, argbuf, argdbuf);
 		return lt_fifo_send(&cfg, pipe_fd, buf, len);
 	}
 
@@ -166,13 +173,7 @@ static int sym_exit(const char *symname, void *ptr,
 
 	indent_depth--;
 
-	if (!argret) {
-		free(argbuf);
-
-		if (lt_sh(&cfg, args_detailed) && (*argdbuf))
-			free(argdbuf);
-	}
-
+	free_argbuf(argret, argbuf, argdbuf);
 	return 0;
 }
 
@@ -244,19 +245,28 @@ static unsigned int la_symbind(ElfW(Sym) *sym, const char *symname)
 {
 	unsigned int flags = 0;
 
+	/* particular symbols specified, omit all others */
 	if (cfg.symbols_cnt) {
 		flags = LA_SYMB_NOPLTENTER|LA_SYMB_NOPLTEXIT;
 		if (check_names((char*) symname, cfg.symbols))
 			flags = 0;
 	}
 
+	/* we might want just pltenter for some.. eg for _setjmp */
+	if (cfg.symbols_noexit_cnt) {
+		if (check_names((char*) symname, cfg.symbols_noexit))
+			flags = LA_SYMB_NOPLTEXIT;
+	}
+
+	/* and keep omit options the strongest */
 	if (cfg.symbols_omit_cnt) {
 		if (check_names((char*) symname, cfg.symbols_omit))
 			flags = LA_SYMB_NOPLTENTER|LA_SYMB_NOPLTEXIT;
 	}
 
 	/* we are interested in this symbol */
-	if (!(flags & LA_SYMB_NOPLTENTER))
+	if (lt_sh(&cfg, global_symbols) &&
+	    !(flags & LA_SYMB_NOPLTENTER))
 		lt_symbol_bind(cfg.sh, (void*) sym->st_value, symname);
 
 	return flags;
@@ -264,7 +274,7 @@ static unsigned int la_symbind(ElfW(Sym) *sym, const char *symname)
 
 void la_activity(uintptr_t *cookie, unsigned int act)
 {
-	PRINT_VERBOSE(&cfg, 2, "entry\n");
+	PRINT_VERBOSE(&cfg, 2, "%s\n", "entry");
 }
 
 char* la_objsearch(const char *name, uintptr_t *cookie, unsigned int flag)
@@ -277,12 +287,12 @@ char* la_objsearch(const char *name, uintptr_t *cookie, unsigned int flag)
 
 void la_preinit(uintptr_t *__cookie)
 {
-	PRINT_VERBOSE(&cfg, 2, "entry\n");
+	PRINT_VERBOSE(&cfg, 2, "%s\n", "entry");
 }
 
 unsigned int la_objclose(uintptr_t *__cookie)
 {
-	PRINT_VERBOSE(&cfg, 2, "entry\n");
+	PRINT_VERBOSE(&cfg, 2, "%s\n", "entry");
 	return 0;
 }
 

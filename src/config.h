@@ -31,7 +31,6 @@
 
 #include "audit.h"
 #include "list.h"
-#include "autoconf.h"
 
 #ifdef CONFIG_ARCH_HAVE_ARGS
 #include "args.h"
@@ -70,6 +69,38 @@ struct lt_config_tv {
 	char *name;
 };
 
+enum {
+	LT_OPT_HEADERS = 1,
+	LT_OPT_PIPE,
+	LT_OPT_INDENT_SYM,
+	LT_OPT_TIMESTAMP,
+	LT_OPT_FRAMESIZE,
+	LT_OPT_FRAMESIZE_CHECK,
+	LT_OPT_HIDE_TID,
+	LT_OPT_FOLLOW_FORK,
+	LT_OPT_FOLLOW_EXEC,
+	LT_OPT_DEMANGLE,
+	LT_OPT_BRACES,
+	LT_OPT_ENABLE_ARGS,
+	LT_OPT_DETAIL_ARGS,
+	LT_OPT_OUTPUT_TTY,
+	LT_OPT_LIBS,
+	LT_OPT_LIBS_TO,
+	LT_OPT_LIBS_FROM,
+	LT_OPT_SYM,
+	LT_OPT_SYM_OMIT,
+	LT_OPT_SYM_BELOW,
+	LT_OPT_SYM_NOEXIT,
+	LT_OPT_ARGS_STRING_POINTER_LENGTH,
+};
+
+struct lt_config_opt {
+	int idx;
+	char *sval;
+	unsigned long nval;
+	struct lt_list_head list;
+};
+
 struct lt_config_shared {
 #define LT_CONFIG_VERSION	1
 #define LT_CONFIG_MAGIC		((LT_CONFIG_VERSION << 16) + 0xdead)
@@ -85,6 +116,7 @@ struct lt_config_shared {
 #define LT_SYMBOLS_MAXSIZE  200
 	char symbols[LT_SYMBOLS_MAXSIZE];
 	char symbols_omit[LT_SYMBOLS_MAXSIZE];
+	char symbols_noexit[LT_SYMBOLS_MAXSIZE];
 
 	char flow_below[LT_SYMBOLS_MAXSIZE];
 
@@ -95,6 +127,7 @@ struct lt_config_shared {
 	char args_def[LT_MAXFILE];
 	char args_enabled;
 	char args_detailed;
+	char args_string_pointer_length;
 #define LR_ARGS_MAXLEN 1000
 	int  args_maxlen;
 #define LR_ARGS_DETAIL_MAXLEN 1000
@@ -141,6 +174,10 @@ struct lt_config_app {
 	int arg_num;
 
 	int csort;
+
+	int  output_tty;
+	int  output_tty_fd;
+	char output_tty_file[LT_MAXFILE];
 
 	struct lt_thread *threads;
 	struct lt_thread *iter;
@@ -191,6 +228,9 @@ struct lt_config_audit {
 	char *symbols_omit[LT_NAMES_MAX];
 	int symbols_omit_cnt;
 
+	char *symbols_noexit[LT_NAMES_MAX];
+	int symbols_noexit_cnt;
+
 	char *flow_below[LT_NAMES_MAX];
 	int flow_below_cnt;
 
@@ -199,6 +239,12 @@ struct lt_config_audit {
 
 	char *dir;
 	int init_ok;
+};
+
+/* config - list name support */
+struct lt_config_ln {
+	char *name;
+	struct lt_list_head list;
 };
 
 #define lt_sh(cfg, field) ((cfg)->sh->field)
@@ -279,7 +325,8 @@ int lt_run(struct lt_config_app *cfg);
 
 /* fifo */
 int lt_fifo_create(struct lt_config_audit *cfg, char *dir);
-int lt_fifo_open(struct lt_config_app *cfg, char *name);
+int lt_fifo_open(struct lt_config_app *cfg, char *dir, char *name);
+int lt_fifo_notify_fd(struct lt_config_app *cfg, char *dir);
 int lt_fifo_send(struct lt_config_audit *cfg, int fd, char *buf, int len);
 int lt_fifo_recv(struct lt_config_app *cfg, struct lt_thread *t, 
 		void *buf, int bufsize);
@@ -322,6 +369,20 @@ struct lt_symbol* lt_symbol_bind(struct lt_config_shared *cfg,
 				void *ptr, const char *name);
 struct lt_symbol* lt_symbol_get(struct lt_config_shared *cfg,
 				void *ptr, const char *name);
+
+/* config options */
+struct lt_config_opt *lt_config_opt_new(struct lt_config_app *cfg,
+					int idx, char *sval, long nval);
+int lt_config_opt_process(struct lt_config_app *cfg, struct lt_list_head *list);
+int lt_config_ln_add(struct lt_list_head *head, char *name);
+int lt_config_ln_fill(struct lt_list_head *head, char *buf, int size);
+
+/* tty */
+int tty_master(struct lt_config_app *cfg);
+int tty_init(struct lt_config_app *cfg, int master);
+int tty_restore(struct lt_config_app *cfg);
+int tty_process(struct lt_config_app *cfg, int master);
+void tty_close(struct lt_config_app *cfg);
 
 #define PRINT(fmt, args...) \
 do { \

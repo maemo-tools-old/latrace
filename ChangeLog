@@ -1,5 +1,88 @@
+2011-12-05 Jiri Olsa <olsajiri@gmail.com>
+	* stats bugfix - use timersub() and timeradd()
+	* stats - report zero percents instead of NaN
+	  (contributed by Akos Pasztory <akos.pasztory@gmail.com>)
+
+2011-09-05 Jiri Olsa <olsajiri@gmail.com>
+	* Fixes paraller building like 'make -j16'
+	  (contributed by Tapani Pälli <tapani.palli@intel.com>)
+
+-------------------------------------------------------------------------------
+latrace 0.5.11
+
+2011-07-28 Jiri Olsa <olsajiri@gmail.com>
+	* doc - update configuration file stuff
+	* config - add missing help for -N option
+	* 0.5.11 release changes
+
+2011-07-07 Jiri Olsa <olsajiri@gmail.com>
+	* args - fix size_t printf compile warning
+
+2011-06-21 Jiri Olsa <olsajiri@gmail.com>
+	* config - fixed memory leak
+
+2011-06-15 Jiri Olsa <olsajiri@gmail.com>
+	* global_symbol fix - proper tree management
+	* make tracer return actual tracee status
+	* move all tests to scripts
+	* added following options
+	  LIBS, LIBS_TO, LIBS_FROM, SYM, SYM_OMIT, SYM_BELOW, SYM_NOEXIT
+	* automated tests for LIBS*/SYM*
+	* args - adding support to display string pointer and length,
+	  ARGS_STRING_POINTER_LENGTH option
+	  (contributed by Dr. David Alan Gilbert <david.gilbert@linaro.org>)
+
+2011-06-02 Jiri Olsa <olsajiri@gmail.com>
+	* adding large file support
+
+2011-05-30 Jiri Olsa <olsajiri@gmail.com>
+	* fixed bug in tracer waiting code
+	  (do not exit the loop prematurely)
+	* reading the -N config file immediatelly within
+	  args processing
+
+2011-05-25 Jiri Olsa <olsajiri@gmail.com>
+	* adding SIGTERM/SIGINT handlers,
+	  refactoring lt_run to check the latrace got killed
+	* adding tests for latrace termination
+	* args - replacing destination strings with void pointers
+	* tty output - move fd to the config struct
+
+2011-05-24 Jiri Olsa <olsajiri@gmail.com>
+	* args - use isprint to decide whether to print the character,
+	  force test.sh to use bash,
+	  enable tests for ARM architecture
+	  (contributed by Dr. David Alan Gilbert <david.gilbert@linaro.org>)
+	* fix test_[char|short|int|long] tests
+	* test_long - separate 32/64 versions
+
+2011-05-13 Jiri Olsa <olsajiri@gmail.com>
+	* build fix for ARM
+	  (contributed by Dr. David Alan Gilbert <david.gilbert@linaro.org>)
+	* fixed errors discovered by cppcheck
+
+2011-05-05 Jiri Olsa <olsajiri@gmail.com>
+	* adding OUTPUT_TTY config file option
+	* disabling connection between -R and -q options
+
+2011-04-20 Jiri Olsa <olsajiri@gmail.com>
+	* prevent gcc warning with single printf like arg passing
+	* adding automated test support, so far for x86 and x86_64,
+	  others are disabled. From this time on, I'll try to force
+	  addition of automated test for each  fix/feature.. ;)
+
+2011-04-16 Jiri Olsa <olsajiri@gmail.com>
+	* fix display of char arguments
+	* add threads fifo management to special directory
+	  so the notification is not affected by other files
+
+2011-04-06 Jiri Olsa <olsajiri@gmail.com>
+	* fix memory leak in the argument display code
+
 2011-04-05 Jiri Olsa <olsajiri@gmail.com>
 	* fix controled config bug - missing shared config assignment
+	* moving conf header files to new location + rename s/conf/h/
+	* adding support for configuration file
 
 2011-02-15 Jiri Olsa <olsajiri@gmail.com>
 	* moving debian directory to the packaging

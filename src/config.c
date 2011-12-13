@@ -23,8 +23,26 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "config.h"
+#include "lib-include.h"
+
+extern FILE *lt_config_in;
+int  lt_config_parse();
+void lt_config__switch_to_buffer (YY_BUFFER_STATE new_buffer  );
+void lt_config__delete_buffer (YY_BUFFER_STATE b  );
+YY_BUFFER_STATE lt_config__create_buffer (FILE *file,int size  );
+
+static struct lt_include inc = {
+	.stack_idx        = 0,
+	.create_buffer    = lt_config__create_buffer,
+	.switch_to_buffer = lt_config__switch_to_buffer,
+	.delete_buffer    = lt_config__delete_buffer,
+	.in               = &lt_config_in,
+};
+
+int lt_config_parse_init(struct lt_config_app *cfg, struct lt_include *inc);
 
 static void usage() NORETURN;
 static void usage()
@@ -42,11 +60,12 @@ static void usage()
 	printf("                                    time,per,call,ucall,lib,sym  (default is call)\n");
 	printf("    -p, --pipe                      use pipe to latrace process to send audit data\n");
 	printf("                                    latrace app is then the one displaying the output\n");
+	printf("    -N, --conf                      config file\n");
 	printf("\n");
 #ifndef CONFIG_ARCH_HAVE_ARGS
 	printf("    -[ADa]                          arguments display support not compiled in\n");
 #else
-	printf("    -A, --enable-args               enable arguments output (definitions from /etc/latrace.conf)\n");
+	printf("    -A, --enable-args               enable arguments output (definitions from headers)\n");
 	printf("    -D, --detail-args               display struct arguments in more detail\n");
 	printf("    -a, --args file                 arguments definition file, implies \'-A\'\n");
 #endif
@@ -66,7 +85,7 @@ static void usage()
 	printf("    -o, --output file               store output to file\n");
 	printf("\n");
 	printf("    -R, --ctl-config                controled config\n");
-	printf("    -q, --disable                   disable auditing (enables -R)\n");
+	printf("    -q, --disable                   disable auditing\n");
 	printf("\n");
 	printf("    -v, --verbose                   verbose output\n");
 	printf("    -V, --version                   display version\n");
@@ -107,10 +126,306 @@ static int get_type(struct lt_config_app *cfg, struct lt_config_tv *tv,
 	return -1;
 }
 
+/* read conf file */
+static int read_config(struct lt_config_app *cfg, char *file)
+{
+	int ret = 0;
+	lt_config_parse_init(cfg, &inc);
+
+	PRINT_VERBOSE(cfg, 1, "config file %s\n", file);
+
+	if (lt_inc_open(cfg->sh, &inc, file))
+		return -1;
+
+	if (lt_config_parse()) {
+		printf("failed to parse config file %s\n", file);
+		ret = -1;
+        }
+
+	return ret;
+}
+
+#define CHECK_BOOL(str, sval, ival)    \
+do {                                   \
+	if (ival != -1)                \
+		val = ival;            \
+	else if (!strcmp(sval, "YES")) \
+		val = 1;               \
+	else if (!strcmp(sval, "NO"))  \
+		val = 0;               \
+	else                           \
+		return -1;             \
+} while(0)
+
+#define CHECK_INT(val, sval, ival) \
+do {                               \
+	val = ival;                \
+	if (val == -1)             \
+		val = atoi(sval);  \
+} while(0)
+
+static int process_option_val(struct lt_config_app *cfg, int idx,
+			      char *sval, int ival)
+{
+	int val;
+
+	PRINT_VERBOSE(cfg, 1, "option idx %d, sval %s, ival %d\n",
+		      idx, sval, ival);
+
+	switch(idx) {
+	case LT_OPT_HEADERS:
+		strcpy(lt_sh(cfg, args_def), sval);
+
+		PRINT_VERBOSE(cfg, 1, "HEADERS '%s'\n",
+			      lt_sh(cfg, args_def));
+		break;
+
+	case LT_OPT_INDENT_SYM:
+		CHECK_INT(val, sval, ival);
+		lt_sh(cfg, indent_size) = val;
+
+		PRINT_VERBOSE(cfg, 1, "INDENT_SYM %d\n",
+			      lt_sh(cfg, indent_size));
+		break;
+
+	case LT_OPT_PIPE:
+		CHECK_BOOL(val, sval, ival);
+		lt_sh(cfg, pipe) = val;
+
+		PRINT_VERBOSE(cfg, 1, "PIPE %d\n",
+			      lt_sh(cfg, pipe));
+		break;
+
+	case LT_OPT_TIMESTAMP:
+		CHECK_BOOL(val, sval, ival);
+		lt_sh(cfg, timestamp) = val;
+
+		PRINT_VERBOSE(cfg, 1, "TIMESTAMP %d\n",
+			      lt_sh(cfg, timestamp));
+		break;
+
+	case LT_OPT_FRAMESIZE:
+		CHECK_INT(val, sval, ival);
+		lt_sh(cfg, framesize) = val;
+
+		PRINT_VERBOSE(cfg, 1, "FRAMESIZE %d\n",
+			      lt_sh(cfg, framesize));
+		break;
+
+	case LT_OPT_FRAMESIZE_CHECK:
+		CHECK_BOOL(val, sval, ival);
+		lt_sh(cfg, framesize_check) = val;
+
+		PRINT_VERBOSE(cfg, 1, "FRAMESIZE_CHECK %d\n",
+			      lt_sh(cfg, framesize_check));
+		break;
+
+	case LT_OPT_HIDE_TID:
+		CHECK_BOOL(val, sval, ival);
+		lt_sh(cfg, hide_tid) = val;
+
+		PRINT_VERBOSE(cfg, 1, "HIDE_TID %d\n",
+			      lt_sh(cfg, hide_tid));
+		break;
+
+	case LT_OPT_FOLLOW_FORK:
+		CHECK_BOOL(val, sval, ival);
+		lt_sh(cfg, not_follow_fork) = !val;
+
+		PRINT_VERBOSE(cfg, 1, "NOT FOLLOW_FORK %d\n",
+			      lt_sh(cfg, not_follow_fork));
+		break;
+
+	case LT_OPT_FOLLOW_EXEC:
+		CHECK_BOOL(val, sval, ival);
+		lt_sh(cfg, not_follow_exec) = !val;
+
+		PRINT_VERBOSE(cfg, 1, "NOT FOLLOW_EXEC %d\n",
+			      lt_sh(cfg, not_follow_exec));
+		break;
+
+	case LT_OPT_DEMANGLE:
+		CHECK_BOOL(val, sval, ival);
+		lt_sh(cfg, demangle) = val;
+
+		PRINT_VERBOSE(cfg, 1, "DEMANGLE %d\n",
+			      lt_sh(cfg, demangle));
+		break;
+
+	case LT_OPT_BRACES:
+		CHECK_BOOL(val, sval, ival);
+		lt_sh(cfg, braces) = val;
+
+		PRINT_VERBOSE(cfg, 1, "BRACES %d\n",
+			      lt_sh(cfg, braces));
+		break;
+
+	case LT_OPT_ENABLE_ARGS:
+		CHECK_BOOL(val, sval, ival);
+		lt_sh(cfg, args_enabled) = val;
+
+		PRINT_VERBOSE(cfg, 1, "ENABLE_ARGS %d\n",
+			      lt_sh(cfg, args_enabled));
+		break;
+
+	case LT_OPT_DETAIL_ARGS:
+		CHECK_BOOL(val, sval, ival);
+		lt_sh(cfg, args_detailed) = val;
+
+		PRINT_VERBOSE(cfg, 1, "DETAIL_ARGS %d\n",
+			      lt_sh(cfg, args_detailed));
+		break;
+
+	case LT_OPT_OUTPUT_TTY:
+		cfg->output_tty = 1;
+		strcpy(cfg->output_tty_file, sval);
+
+		PRINT_VERBOSE(cfg, 1, "OUTPUT_TTY '%s'\n",
+			      cfg->output_tty_file);
+		break;
+
+	case LT_OPT_LIBS:
+		strcpy(lt_sh(cfg, libs_both), sval);
+		PRINT_VERBOSE(cfg, 1, "LIBS '%s'\n",
+			      lt_sh(cfg, libs_both));
+		break;
+
+	case LT_OPT_LIBS_TO:
+		strcpy(lt_sh(cfg, libs_to), sval);
+		PRINT_VERBOSE(cfg, 1, "LIBS_TO '%s'\n",
+			      lt_sh(cfg, libs_to));
+		break;
+
+	case LT_OPT_LIBS_FROM:
+		strcpy(lt_sh(cfg, libs_from), sval);
+		PRINT_VERBOSE(cfg, 1, "LIBS_FROM '%s'\n",
+			      lt_sh(cfg, libs_from));
+		break;
+
+	case LT_OPT_SYM:
+		strcpy(lt_sh(cfg, symbols), sval);
+		PRINT_VERBOSE(cfg, 1, "SYM '%s'\n",
+			      lt_sh(cfg, symbols));
+		break;
+
+	case LT_OPT_SYM_OMIT:
+		strcpy(lt_sh(cfg, symbols_omit), sval);
+		PRINT_VERBOSE(cfg, 1, "SYM_OMIT '%s'\n",
+			      lt_sh(cfg, symbols_omit));
+		break;
+
+	case LT_OPT_SYM_BELOW:
+		strcpy(lt_sh(cfg, flow_below), sval);
+		PRINT_VERBOSE(cfg, 1, "SYM_BELOW '%s'\n",
+			      lt_sh(cfg, flow_below));
+		break;
+
+	case LT_OPT_SYM_NOEXIT:
+		strcpy(lt_sh(cfg, symbols_noexit), sval);
+		PRINT_VERBOSE(cfg, 1, "SYM_NOEXIT '%s'\n",
+			      lt_sh(cfg, symbols_noexit));
+		break;
+
+	case LT_OPT_ARGS_STRING_POINTER_LENGTH:
+		CHECK_BOOL(val, sval, ival);
+		lt_sh(cfg, args_string_pointer_length) = val;
+
+		PRINT_VERBOSE(cfg, 1, "ARGS_STRING_POINTER_LENGTH %d\n",
+			      lt_sh(cfg, args_detailed));
+		break;
+
+	default:
+		return -1;
+	}
+	return 0;
+}
+
+static int process_option(struct lt_config_app *cfg, struct lt_config_opt *opt)
+{
+	return process_option_val(cfg, opt->idx, opt->sval, opt->nval);
+}
+
+int lt_config_opt_process(struct lt_config_app *cfg, struct lt_list_head *list)
+{
+	struct lt_config_opt *opt;
+
+	lt_list_for_each_entry(opt, list, list) {
+		int ret;
+
+		ret = process_option(cfg, opt);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+struct lt_config_opt *lt_config_opt_new(struct lt_config_app *cfg,
+					int idx, char *sval, long nval)
+{
+	struct lt_config_opt *opt;
+
+	opt = malloc(sizeof(*opt));
+	if (!opt)
+		return NULL;
+
+	lt_init_list_head(&opt->list);
+	opt->idx  = idx;
+	opt->sval = sval ? strdup(sval) : NULL;
+	opt->nval = nval;
+
+	PRINT_VERBOSE(cfg, 1, "idx %d = %s, %d\n",
+		      opt->idx, opt->sval , opt->nval);
+	return opt;
+}
+
+int lt_config_ln_add(struct lt_list_head *head, char *name)
+{
+	struct lt_config_ln *ln = malloc(sizeof(*ln));
+
+        if (!ln)
+                return -1;
+
+        ln->name = strdup(name);
+        lt_init_list_head(&ln->list);
+        lt_list_add_tail(&ln->list, head);
+	return 0;
+}
+
+int lt_config_ln_fill(struct lt_list_head *head, char *buf, int size)
+{
+        struct lt_config_ln *ln, *n;
+        int first = 1;
+	char *b = buf;
+
+        buf[0] = 0x00;
+
+        lt_list_for_each_entry_safe(ln, n, head, list) {
+		int ret;
+
+		ret = snprintf(b, size, "%s%s",
+				first ? "" : ",",
+				ln->name);
+
+		if (ret >= size)
+			return -1;
+
+		size -= ret;
+		b += ret;
+		first = 0;
+
+		lt_list_del(&ln->list);
+		free(ln->name);
+		free(ln);
+        }
+
+        return 0;
+}
+
 int lt_config(struct lt_config_app *cfg, int argc, char **argv)
 {
 	memset(cfg, 0, sizeof(*cfg));
-	cfg->sh = &cfg->sh_storage;
+	cfg->sh = cfg->sh_storage.sh = &cfg->sh_storage;
 
 	/* default values settings */
 	lt_sh(cfg, magic)           = LT_CONFIG_MAGIC;
@@ -122,6 +437,13 @@ int lt_config(struct lt_config_app *cfg, int argc, char **argv)
 	lt_sh(cfg, args_maxlen)     = LR_ARGS_MAXLEN;
 	lt_sh(cfg, args_detail_maxlen) = LR_ARGS_DETAIL_MAXLEN;
 	cfg->csort = LT_CSORT_CALL;
+	cfg->output_tty_fd = -1;
+
+	/* read the default config file first */
+	if (read_config(cfg, LT_CONF_DIR "/latrace.conf")) {
+		printf("failed: read config file '" LT_CONF_DIR "/latrace.conf'\n");
+		usage();
+	}
 
 	while (1) {
 		int c;
@@ -142,6 +464,7 @@ int lt_config(struct lt_config_app *cfg, int argc, char **argv)
 			{"sort-counts", required_argument, 0, 'C'},
 			{"pipe", no_argument, 0, 'p'},
 			{"output", required_argument, 0, 'o'},
+			{"conf", required_argument, 0, 'N'},
 			{"args", required_argument, 0, 'a'},
 			{"enable-args", required_argument, 0, 'A'},
 			{"detail-args", required_argument, 0, 'D'},
@@ -159,7 +482,7 @@ int lt_config(struct lt_config_app *cfg, int argc, char **argv)
 			{0, 0, 0, 0}
 		};
 
-		c = getopt_long(argc, argv, "+s:n:l:t:f:vhi:BdISb:cC:y:YL:po:a:ADVTFERq",
+		c = getopt_long(argc, argv, "+s:n:l:t:f:vhi:BdISb:cC:y:YL:po:a:N:ADVTFERq",
 					long_options, &option_index);
 
 		if (c == -1)
@@ -167,45 +490,45 @@ int lt_config(struct lt_config_app *cfg, int argc, char **argv)
 
 		switch (c) {
 		case 'l':
-			if (strlen(optarg) > LT_LIBS_MAXSIZE)
+			if (strlen(optarg) >= LT_LIBS_MAXSIZE)
 				return -1;
 
-			strncpy(lt_sh(cfg, libs_both), optarg, strlen(optarg));
+			process_option_val(cfg, LT_OPT_LIBS, optarg, -1);
 			break;
 
 		case 't':
-			if (strlen(optarg) > LT_LIBS_MAXSIZE)
+			if (strlen(optarg) >= LT_LIBS_MAXSIZE)
 				return -1;
 
-			strncpy(lt_sh(cfg, libs_to), optarg, strlen(optarg));
+			process_option_val(cfg, LT_OPT_LIBS_TO, optarg, -1);
 			break;
 
 		case 'f':
-			if (strlen(optarg) > LT_LIBS_MAXSIZE)
+			if (strlen(optarg) >= LT_LIBS_MAXSIZE)
 				return -1;
 
-			strncpy(lt_sh(cfg, libs_from), optarg, strlen(optarg));
+			process_option_val(cfg, LT_OPT_LIBS_FROM, optarg, -1);
 			break;
 
 		case 's':
-			if (strlen(optarg) > LT_SYMBOLS_MAXSIZE)
+			if (strlen(optarg) >= LT_SYMBOLS_MAXSIZE)
 				return -1;
 
-			strncpy(lt_sh(cfg, symbols), optarg, strlen(optarg));
+			process_option_val(cfg, LT_OPT_SYM, optarg, -1);
 			break;
 
 		case 'n':
-			if (strlen(optarg) > LT_SYMBOLS_MAXSIZE)
+			if (strlen(optarg) >= LT_SYMBOLS_MAXSIZE)
 				return -1;
 
-			strncpy(lt_sh(cfg, symbols_omit), optarg, strlen(optarg));
+			process_option_val(cfg, LT_OPT_SYM_OMIT, optarg, -1);
 			break;
 
 		case 'b':
-			if (strlen(optarg) > LT_SYMBOLS_MAXSIZE)
+			if (strlen(optarg) >= LT_SYMBOLS_MAXSIZE)
 				return -1;
 
-			strncpy(lt_sh(cfg, flow_below), optarg, strlen(optarg));
+			process_option_val(cfg, LT_OPT_SYM_BELOW, optarg, -1);
 			break;
 
 		case 'v':
@@ -213,19 +536,19 @@ int lt_config(struct lt_config_app *cfg, int argc, char **argv)
 			break;
 
 		case 'S':
-			lt_sh(cfg, timestamp) = 1;
+			process_option_val(cfg, LT_OPT_TIMESTAMP, NULL, 1);
 			break;
 
 		case 'T':
-			lt_sh(cfg, hide_tid) = 1;
+			process_option_val(cfg, LT_OPT_HIDE_TID, NULL, 1);
 			break;
 
 		case 'F':
-			lt_sh(cfg, not_follow_fork) = 1;
+			process_option_val(cfg, LT_OPT_FOLLOW_FORK, NULL, 0);
 			break;
 
 		case 'E':
-			lt_sh(cfg, not_follow_exec) = 1;
+			process_option_val(cfg, LT_OPT_FOLLOW_EXEC, NULL, 0);
 			break;
 
 		case 'i':
@@ -233,7 +556,7 @@ int lt_config(struct lt_config_app *cfg, int argc, char **argv)
 			break;
 
 		case 'B':
-			lt_sh(cfg, braces) = 1;
+			process_option_val(cfg, LT_OPT_BRACES, NULL, 0);
 			break;
 
 		case 'd':
@@ -243,7 +566,7 @@ int lt_config(struct lt_config_app *cfg, int argc, char **argv)
 			break;
 			#endif
 
-			lt_sh(cfg, demangle) = 1;
+			process_option_val(cfg, LT_OPT_DEMANGLE, NULL, 0);
 			break;
 
 		case 'I':
@@ -251,11 +574,11 @@ int lt_config(struct lt_config_app *cfg, int argc, char **argv)
 			break;
 
 		case 'y':
-			lt_sh(cfg, framesize) = atoi(optarg);
+			process_option_val(cfg, LT_OPT_FRAMESIZE, optarg, -1);
 			break;
 
 		case 'Y':
-			lt_sh(cfg, framesize_check) = 0;
+			process_option_val(cfg, LT_OPT_FRAMESIZE_CHECK, NULL, 0);
 			break;
 
 		case 'L':
@@ -274,7 +597,7 @@ int lt_config(struct lt_config_app *cfg, int argc, char **argv)
 			lt_sh(cfg, counts) = 1;
 			/* falling through */
 		case 'p':
-			lt_sh(cfg, pipe) = 1;
+			process_option_val(cfg, LT_OPT_PIPE, NULL, 1);
 			break;
 
 		#ifndef CONFIG_ARCH_HAVE_ARGS
@@ -285,17 +608,25 @@ int lt_config(struct lt_config_app *cfg, int argc, char **argv)
 			break;
 		#else
 		case 'a':
-			strcpy(lt_sh(cfg, args_def), optarg);
+			process_option_val(cfg, LT_OPT_HEADERS, optarg, -1);
+
 			/* falling through */
 		case 'A':
-
-			lt_sh(cfg, args_enabled) = 1;
+			process_option_val(cfg, LT_OPT_ENABLE_ARGS, NULL, 1);
 			break;
 
 		case 'D':
-			lt_sh(cfg, args_detailed) = 1;
+			process_option_val(cfg, LT_OPT_DETAIL_ARGS, NULL, 1);
 			break;
 		#endif /* CONFIG_ARCH_HAVE_ARGS */
+
+		case 'N':
+			/* read user-specifide config file */
+			if (read_config(cfg, optarg)) {
+				printf("failed: read config file '%s'\n", optarg);
+				usage();
+			}
+			break;
 
 		case 'o':
 			strcpy(lt_sh(cfg, output), optarg);
@@ -303,7 +634,8 @@ int lt_config(struct lt_config_app *cfg, int argc, char **argv)
 
 		case 'q':
 			lt_sh(cfg, disabled) = 1;
-			/* falling through */
+			break;
+
 		case 'R':
 			lt_sh(cfg, ctl_config) = 1;
 			break;

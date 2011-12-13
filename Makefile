@@ -19,8 +19,9 @@
 
 -include src/autoconf.make
 
-confdir  := $(sysconfdir)/latrace.d
-confarch := $(sysconfdir)/latrace.d/sysdeps/$(CONFIG_SYSDEP_DIR)
+confdir     := $(sysconfdir)/latrace.d
+headdir     := $(sysconfdir)/latrace.d/headers
+headarchdir := $(sysconfdir)/latrace.d/headers/sysdeps/$(CONFIG_SYSDEP_DIR)
 
 # looks like DESTDIR is a standard, but prioritize ROOTDIR anyway
 ifdef DESTDIR
@@ -84,43 +85,44 @@ endef
 all::
 
 install:: all
-	$(call install,etc/latrace.conf,$(sysconfdir),644)
-	$(call install,etc/latrace.d/ctype.conf,$(confdir),644)
-	$(call install,etc/latrace.d/inet.conf,$(confdir),644)
-	$(call install,etc/latrace.d/misc.conf,$(confdir),644)
-	$(call install,etc/latrace.d/typedefs.conf,$(confdir),644)
-	$(call install,etc/latrace.d/stdlib.conf,$(confdir),644)
-	$(call install,etc/latrace.d/string.conf,$(confdir),644)
-	$(call install,etc/latrace.d/ctype.conf,$(confdir),644)
-	$(call install,etc/latrace.d/ncurses.conf,$(confdir),644)
-	$(call install,etc/latrace.d/stdio.conf,$(confdir),644)
-	$(call install,etc/latrace.d/dirent.conf,$(confdir),644)
-	$(call install,etc/latrace.d/unistd.conf,$(confdir),644)
-	$(call install,etc/latrace.d/libintl.conf,$(confdir),644)
-	$(call install,etc/latrace.d/dlfcn.conf,$(confdir),644)
-	$(call install,etc/latrace.d/fcntl.conf,$(confdir),644)
-	$(call install,etc/latrace.d/getopt.conf,$(confdir),644)
-	$(call install,etc/latrace.d/signal.conf,$(confdir),644)
-	$(call install,etc/latrace.d/ioctl.conf,$(confdir),644)
-	$(call install,etc/latrace.d/socket.conf,$(confdir),644)
-	$(call install,etc/latrace.d/netdb.conf,$(confdir),644)
-	$(call install,etc/latrace.d/stat.conf,$(confdir),644)
-	$(call install,etc/latrace.d/wait.conf,$(confdir),644)
-	$(call install,etc/latrace.d/utmp.conf,$(confdir),644)
-	$(call install,etc/latrace.d/time.conf,$(confdir),644)
-	$(call install,etc/latrace.d/termios.conf,$(confdir),644)
-	$(call install,etc/latrace.d/term.conf,$(confdir),644)
-	$(call install,etc/latrace.d/syslog.conf,$(confdir),644)
-	$(call install,etc/latrace.d/pwd.conf,$(confdir),644)
-	$(call install,etc/latrace.d/libio.conf,$(confdir),644)
-	$(call install,etc/latrace.d/locale.conf,$(confdir),644)
-	$(call install,etc/latrace.d/pthread.conf,$(confdir),644)
-	$(call install,etc/latrace.d/resource.conf,$(confdir),644)
-	$(call install,etc/latrace.d/mman.conf,$(confdir),644)
+	$(call install,etc/latrace.d/latrace.conf,$(confdir),644)
+	$(call install,etc/latrace.d/headers/latrace.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/ctype.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/inet.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/misc.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/typedefs.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/stdlib.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/string.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/ctype.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/ncurses.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/stdio.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/dirent.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/unistd.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/libintl.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/dlfcn.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/fcntl.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/getopt.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/signal.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/ioctl.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/socket.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/netdb.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/stat.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/wait.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/utmp.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/time.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/termios.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/term.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/syslog.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/pwd.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/libio.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/locale.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/pthread.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/resource.h,$(headdir),644)
+	$(call install,etc/latrace.d/headers/mman.h,$(headdir),644)
 ifeq ($(CONFIG_SYSDEP_DIR),x86_64)
 	@mkdir -p $(ROOTDIR)/$(confarch)
-	$(call install,etc/sysdeps/$(CONFIG_SYSDEP_DIR)/latrace.conf,$(confarch),644)
-	$(call install,etc/sysdeps/$(CONFIG_SYSDEP_DIR)/syscall.conf,$(confarch),644)
+	$(call install,etc/latrace.d/headers/sysdeps/$(CONFIG_SYSDEP_DIR)/latrace.h,$(headarchdir),644)
+	$(call install,etc/latrace.d/headers/sysdeps/$(CONFIG_SYSDEP_DIR)/syscall.h,$(headarchdir),644)
 endif
 
 
@@ -140,8 +142,13 @@ OBJS=
 include src/Makefile
 include doc/Makefile
 
-INCLUDES= -Isrc -Isrc/sysdeps/$(CONFIG_SYSDEP_DIR)
-ALL_CFLAGS=$(CPPFLAGS) $(CFLAGS) -O2 -fPIC -Wall $(INCLUDES) -D_GNU_SOURCE
+ifeq ($(CONFIG_ARCH_HAVE_TEST),y)
+include test/Makefile
+endif
+
+INCLUDES= -I. -Isrc -Isrc/sysdeps/$(CONFIG_SYSDEP_DIR)
+ALL_CFLAGS=$(CPPFLAGS) $(CFLAGS) -O2 -fPIC -Wall $(INCLUDES)
+ALL_CFLAGS+=-D_GNU_SOURCE -imacros src/autoconf.h
 
 
 %.o: %.c LATRACE-CFLAGS
@@ -160,7 +167,6 @@ all:: $(PROGRAMS) LATRACE-CFLAGS
 
 clean::
 	$(call remove, $(OBJS) $(PROGRAMS))
-	$(call remove, src/args-bison.c src/args-flex.c src/args-bison.h src/args-bison.output)
 	$(call remove, lib bin share deps.make latrace-$(CONFIG_VERSION))
 
 mrproper::
@@ -184,8 +190,7 @@ package:
 # The gcc -M depedencies generation needs to repaired to include
 # subdirectory name within the target.. at least I haven't find any
 # gcc option to do that.
-#  - no dependency for flex and bison definitions
-DEPS_OBJS=$(filter-out src/args-flex.o src/args-bison.o,$(OBJS))
+DEPS_OBJS=$(filter-out $(OBJS_DEPS_OMIT),$(OBJS))
 
 deps.make:
 	$(QUIET_DEP)$(RM) -f deps.make; \
